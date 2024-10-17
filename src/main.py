@@ -1,11 +1,14 @@
 import os
 import re
+import base64
+import json
 from modules.bigquery_worker import *
 from modules.gcs_worker import *
 from modules.schema import *
 import pandas as pd
 from datetime import datetime, timedelta
 import pytz
+import functions_framework
 
 # 日本のタイムゾーンを設定
 japan_tz = pytz.timezone('Asia/Tokyo')
@@ -54,12 +57,8 @@ def process_tms060(file_path, bucket_name, file_name):
     tbl_full = f"{project_id}.{dataset_id}.{tms060_table_name}"
     bq.insert_with_client(df, schema_tms060, tbl_full, 'UPD_DATE')
 
-def gcs_to_bq(event, context):
-    """Background Cloud Function to be triggered by Cloud Storage."""
-    file = event
-    bucket_name = file['bucket']
-    file_name = file['name']
-
+def gcs_to_bq(bucket_name, file_name):
+    """Process the GCS file and insert data into BigQuery."""
     print(f"Processing file: gs://{bucket_name}/{file_name}")
 
     # ローカルpath
@@ -81,5 +80,16 @@ def gcs_to_bq(event, context):
     print(f"File {file_name} processed successfully.")
 
 # Cloud Function のエントリーポイント
-def main(event, context):
-    gcs_to_bq(event, context)
+@functions_framework.cloud_event
+def main(cloud_event):
+    """Cloud Function triggered by a Cloud Pub/Sub event."""
+    # Pub/Sub メッセージのデータを取得
+    pubsub_message = base64.b64decode(cloud_event.data["message"]["data"]).decode("utf-8")
+    message_data = json.loads(pubsub_message)
+
+    # ストレージイベントの詳細を取得
+    bucket = message_data["bucket"]
+    name = message_data["name"]
+
+    # GCS to BigQuery 処理を呼び出す
+    gcs_to_bq(bucket, name)
