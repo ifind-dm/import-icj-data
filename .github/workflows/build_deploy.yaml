@@ -61,10 +61,10 @@ jobs:
           gcloud run jobs deploy ${{ env.FUNCTION_NAME }} \
           --image us-central1-docker.pkg.dev/ifind-dm/data-management/${{ env.ENVIRONMENT }}-import-icj-data:latest \
           --region us-central1 \
-          --task-timeout 300m
-          --set-env-vars=ENVIRONMENT=${{ env.ENVIRONMENT }}
-          --set-env-vars=BUCKET_NAME=${{ env.BUCKET_NAME }}
-          --set-env-vars=PROJECT_ID=${{ env.PROJECT_ID }}
-          --set-env-vars=BQ_DATASET_ID=${{ env.BQ_DATASET_ID }}
-          --set-env-vars=TABLE_PREFIX=${{ env.TABLE_PREFIX }}
+          --task-timeout 300m \
+          --set-env-vars ENVIRONMENT=${{ env.ENVIRONMENT }} \
+          --set-env-vars BUCKET_NAME=${{ env.BUCKET_NAME }} \
+          --set-env-vars PROJECT_ID=${{ env.PROJECT_ID }} \
+          --set-env-vars BQ_DATASET_ID=${{ env.BQ_DATASET_ID }} \
+          --set-env-vars TABLE_PREFIX=${{ env.TABLE_PREFIX }}
           
