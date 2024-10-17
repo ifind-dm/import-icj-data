@@ -8,12 +8,13 @@ on:
 
 env:
   PROJECT_ID: ifind-dm
-  REGION: us
+  REGION: us-central1
   SOURCE_DIR: src
   PROJECT_NUMBER: '614186555151'
   POOL_ID: github-actions-pool
   PROVIDER_ID: github
   SERVICE_ACCOUNT: ifind-dm-developers@ifind-dm.iam.gserviceaccount.com
+  PUBSUB_TOPIC: storage-events-icj-data
 
 jobs:
   deploy:
@@ -55,7 +56,7 @@ jobs:
         gcloud functions deploy ${{ env.FUNCTION_NAME }} \
           --region=${{ env.REGION }} \
           --source=${{ env.SOURCE_DIR }} \
-          --trigger-bucket=${{ env.BUCKET_NAME }} \
+          --trigger-topic=${{ env.PUBSUB_TOPIC }} \
           --runtime=python39 \
           --entry-point=main \
           --set-env-vars=ENVIRONMENT=${{ env.ENVIRONMENT }},PROJECT_ID=${{ env.PROJECT_ID }},BQ_DATASET_ID=${{ env.BQ_DATASET_ID }},TABLE_PREFIX=${{ env.TABLE_PREFIX }}
