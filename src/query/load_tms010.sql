@@ -1,0 +1,5 @@
+SELECT
+    DISTINCT
+      UPD_DATE
+FROM `{target_table}` 
+WHERE UPD_DATE between date_add(CURRENT_DATE(), INTERVAL -7 DAY) and CURRENT_DATE()

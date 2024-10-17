@@ -3,7 +3,7 @@ schema_tms010 = {
     'IDNO':('INT64', 'NULLABLE'),
     'MKD':('DATETIME', 'NULLABLE'),
     'UPD':('DATETIME', 'NULLABLE'),
-    'MSDT':('INT64', 'NULLABLE'),
+    'MSDT':('DATE', 'NULLABLE'),
     'MSID':('INT64', 'NULLABLE'),
     'JKBN':('INT64', 'NULLABLE'),
     'PLANNG':('STRING', 'NULLABLE'),
@@ -32,14 +32,16 @@ schema_vma0060={
 
 schema_tms060 = {
     'UPD_DATE':('DATE', 'REQUIRED'),
+    'SUID':('INT64', 'NULLABLE'),
     'IDNO':('INT64', 'NULLABLE'),
-    'MKD':('DATETIME', 'NULLABLE'),
-    'UPD':('DATETIME', 'NULLABLE'),
-    'MSDT':('INT64', 'NULLABLE'),
     'MSID':('INT64', 'NULLABLE'),
-    'JKBN':('INT64', 'NULLABLE'),
-    'PLANNG':('STRING', 'NULLABLE'),
-    'JCONTENTS':('STRING', 'NULLABLE'),
-    'RANK':('INT64', 'NULLABLE'),
-    'DELF':('INT64', 'NULLABLE')
+    'MSDT':('DATE', 'NULLABLE'),
+    'REF_DF':('DATETIME', 'NULLABLE'),
+    'REF_DL':('DATETIME', 'NULLABLE'),
+    'MK_FLG':('INT64', 'NULLABLE'),
+    'SV_FLG':('INT64', 'NULLABLE'),
+    'POINT':('INT64', 'NULLABLE'),
+    'POINT2':('INT64', 'NULLABLE'),
+    'POINT3':('INT64', 'NULLABLE')
+
 }

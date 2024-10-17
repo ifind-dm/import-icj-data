@@ -18,45 +18,58 @@ env:
 
 jobs:
   deploy:
-    # リポジトリが ifind-dm 組織に属していることを確認
-    if: github.repository_owner == 'ifind-dm'
     runs-on: ubuntu-latest
-    permissions:
-      contents: 'read'
-      id-token: 'write'
 
     steps:
-    - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-    - id: 'auth'
-      name: 'Authenticate to Google Cloud'
-      uses: 'google-github-actions/auth@v1'
-      with:
-        workload_identity_provider: 'projects/${{ env.PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ env.POOL_ID }}/providers/${{ env.PROVIDER_ID }}'
-        service_account: ${{ env.SERVICE_ACCOUNT }}
+      - name: Set up Google Cloud SDK for dev branch
+      
+        uses: google-github-actions/setup-gcloud@v0.3.0
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          export_default_credentials: true
 
-    - name: Set environment-specific variables
-      run: |
-        if [[ ${{ github.ref }} == 'refs/heads/develop' ]]; then
-          echo "ENVIRONMENT=dev" >> $GITHUB_ENV
-          echo "FUNCTION_NAME=dev-import-icj-data-function" >> $GITHUB_ENV
-          echo "BUCKET_NAME=iris-icj-data" >> $GITHUB_ENV
-          echo "BQ_DATASET_ID=testtest" >> $GITHUB_ENV
-          echo "TABLE_PREFIX=dev_" >> $GITHUB_ENV
-        elif [[ ${{ github.ref }} == 'refs/heads/main' ]]; then
-          echo "ENVIRONMENT=prd" >> $GITHUB_ENV
-          echo "FUNCTION_NAME=prd-import-icj-data-function" >> $GITHUB_ENV
-          echo "BUCKET_NAME=iris-icj-data" >> $GITHUB_ENV
-          echo "BQ_DATASET_ID=iris_lv0_ic_journal_iadb_iris" >> $GITHUB_ENV
-          echo "TABLE_PREFIX=prd_" >> $GITHUB_ENV
-        fi
+      - name: Set environment-specific variables
+        run: |
+          if [[ ${{ github.ref }} == 'refs/heads/develop' ]]; then
+            echo "ENVIRONMENT=dev" >> $GITHUB_ENV
+            echo "FUNCTION_NAME=dev-import-icj-data-function" >> $GITHUB_ENV
+            echo "BUCKET_NAME=iris-icj-data" >> $GITHUB_ENV
+            echo "BQ_DATASET_ID=testtest" >> $GITHUB_ENV
+            echo "TABLE_PREFIX=dev_" >> $GITHUB_ENV
+          elif [[ ${{ github.ref }} == 'refs/heads/main' ]]; then
+            echo "ENVIRONMENT=prd" >> $GITHUB_ENV
+            echo "FUNCTION_NAME=prd-import-icj-data-function" >> $GITHUB_ENV
+            echo "BUCKET_NAME=iris-icj-data" >> $GITHUB_ENV
+            echo "BQ_DATASET_ID=iris_lv0_ic_journal_iadb_iris" >> $GITHUB_ENV
+            echo "TABLE_PREFIX=prd_" >> $GITHUB_ENV
+          fi
 
-    - name: Deploy to Cloud Functions
-      run: |
-        gcloud functions deploy ${{ env.FUNCTION_NAME }} \
-          --region=${{ env.REGION }} \
-          --source=${{ env.SOURCE_DIR }} \
-          --trigger-topic=${{ env.PUBSUB_TOPIC }} \
-          --runtime=python39 \
-          --entry-point=main \
+      - name: Configure docker for artifact registry
+        run: |
+          gcloud auth configure-docker us-central1-docker.pkg.dev
+
+      - name: Build and push Docker image to GCR
+        run: |
+            docker build -t us-central1-docker.pkg.dev/data-management/import-icj-data/${{ env.ENVIRONMENT }}-import-icj-data:latest .
+          
+      - name: Push Docker image to GCR
+        run: |
+            docker push us-central1-docker.pkg.dev/data-management/import-icj-data/${{ env.ENVIRONMENT }}-import-icj-data:latest
+
+
+      - name: Deploy to cloud run job
+        run: |
+          
+          gcloud run jobs deploy recommend-model \
+          --image us-central1-docker.pkg.dev/data-management/import-icj-data/${{ env.ENVIRONMENT }}-import-icj-data:latest \
+          --region us-central1 \
+          --port 8000 \
+          --platform managed \
+          --allow-unauthenticated
+          --task-timeout 300m
           --set-env-vars=ENVIRONMENT=${{ env.ENVIRONMENT }},PROJECT_ID=${{ env.PROJECT_ID }},BQ_DATASET_ID=${{ env.BQ_DATASET_ID }},TABLE_PREFIX=${{ env.TABLE_PREFIX }}
+          

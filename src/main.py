@@ -5,6 +5,7 @@ import json
 from modules.bigquery_worker import *
 from modules.gcs_worker import *
 from modules.schema import *
+from modules.utils import *
 import pandas as pd
 from datetime import datetime, timedelta
 import pytz
@@ -23,7 +24,8 @@ bq = BigQueryWorker()
 gcs = GcsWorker()
 
 project_id = os.environ.get('PROJECT_ID')
-dataset_id = os.environ.get('BQ_DATASET_ID')    
+dataset_id = os.environ.get('BQ_DATASET_ID')
+bucket_name = os.environ.get('BUCKET_NAME')  
     
 vma0060_cols = ['EMP_CD', 'S_CD1', 'S_NM1', 'POSTCD', 'POSTNM', 'POST_RANK', 'POST_RANKNM', 'BUMON_CD', 'BU_CD', 'LEDKBN', 'EGYKBN', 'STAFF_FLG', 'BUMON_NM', 'GET_LCD']
 tms010_cols = ['IDNO', 'MKD', 'UPD', 'MSDT', 'MSID', 'JKBN', 'PLANNG', 'JCONTENTS', 'RANK', 'DELF']
@@ -35,96 +37,56 @@ tms010_table_name = 'iris_lv0_mst_tms010_journal_master'
 tms060_table_name = 'iris_lv0_tra_tms060_journal_action_log'
 tlog_table_name = 'iris_lv0_tra_tlog_journal_action_log'
 
-def parse_datetime(date_str):
-    """
-    様々な日付時刻フォーマットを解析する関数
-    """
-    formats = [
-        "%Y-%m-%d %H:%M:%S.%f %z",  # ISO 8601 形式（マイクロ秒とタイムゾーン付き）
-        "%Y-%m-%d %H:%M:%S.%f",     # マイクロ秒付き
-        "%Y-%m-%d %H:%M:%S %z",     # タイムゾーン付き
-        "%Y-%m-%d %H:%M:%S",        # 基本形式
-        "%Y-%m-%d",                 # 日付のみ
-    ]
-    
-    for fmt in formats:
-        try:
-            return datetime.strptime(date_str, fmt)
-        except ValueError:
-            pass
-    
+
+
+def process_import_bq(query_path, prefix, table_name, partition_key, cols, schema):
+    tbl_full = f"{project_id}.{dataset_id}.{table_name}"
+    query = bq.get_sql_query(query_path, {'target_table':tbl_full})
     try:
-        # ISO 8601 形式を自動解析
-        return pd.to_datetime(date_str, format='ISO8601')
-    except ValueError:
-        # 全ての解析が失敗した場合
-        return None
-
-
-def process_vma0060(file_path, bucket_name, file_name):
-    gcs.download_blob(bucket_name, file_name, file_path)
-    df = pd.read_csv(file_path, sep='\t', encoding='utf-8', names=vma0060_cols)
-    df['DT'] = yesterday_date
-    tbl_full = f"{project_id}.{dataset_id}.{vma0060_table_name}"
-    bq.insert_with_client(df, schema_vma0060, tbl_full, 'DT')
-
-def process_tms010(file_path, bucket_name, file_name):
-    gcs.download_blob(bucket_name, file_name, file_path)
-    df = pd.read_csv(file_path, sep='\t', encoding='utf-8', names=tms010_cols)
-    try:
-        df['UPD_DATE'] = df['UPD'].apply(parse_datetime).dt.date
+        df_mst = bq.load(query)
+        date_list = pd.to_datetime(df_mst[partition_key]).dt.strftime('%Y%m%d').tolist()
     except Exception as e:
-        df['UPD_DATE'] = yesterday_date
         print(e)
+        date_list = []
     
-    tbl_full = f"{project_id}.{dataset_id}.{tms010_table_name}"
-    bq.insert_with_client(df, schema_tms010, tbl_full, 'UPD_DATE')
-
-
-def process_tms060(file_path, bucket_name, file_name):
-    gcs.download_blob(bucket_name, file_name, file_path)
-    df = pd.read_csv(file_path, sep='\t', encoding='utf-8', names=tms060_cols)
-    try:
-        df['UPD_DATE'] = df['REF_DL'].apply(parse_datetime).dt.date
-    except Exception as e:
-        df['UPD_DATE'] = yesterday_date
-        print(e)
-    tbl_full = f"{project_id}.{dataset_id}.{tms060_table_name}"
-    bq.insert_with_client(df, schema_tms060, tbl_full, 'UPD_DATE')
-
-def gcs_to_bq(bucket_name, file_name):
-    """Process the GCS file and insert data into BigQuery."""
-    print(f"Processing file: gs://{bucket_name}/{file_name}")
-
-    # ローカルpath
-    temp_file_path = f"/tmp/{os.path.basename(file_name)}"
-    
-    # ファイル名に基づいて適切な処理を選択
-    if 'vma0060' in file_name:
-        process_vma0060(temp_file_path, bucket_name, file_name)
-    elif 'tms010' in file_name:
-        process_tms010(temp_file_path, bucket_name, file_name)
-    elif 'tms060' in file_name:
-        process_tms060(temp_file_path, bucket_name, file_name)
-    else:
+    # gcsから対象ファイルのリストを取得
+    f_dic = gcs.list_files_to_process(bucket_name, prefix, date_list)
+    if len(f_dic) == 0:
+        print('No files to process')
         return
+    
+    for f_name, f_path in f_dic.items():
+        try:
+            destination_file_name = './input/' + f_name
+            gcs.download_blob(bucket_name, f_path, destination_file_name)
+            df = pd.read_csv(destination_file_name, sep='\t', encoding='utf-8', names=cols)
+            df = preprocess_data(df, f_name)
+            bq.insert_with_client(df, schema, tbl_full, partition_key)
+        except Exception as e:
+            print(e)
+            continue
 
-    # 一時ファイルの削除
-    os.remove(temp_file_path)
 
-    print(f"File {file_name} processed successfully.")
+def preprocess_data(df, f_name):
+    if 'vma0060' in f_name:
+        df['DT'] = yesterday_date
+        return df
+    elif 'tms010' in f_name:
+        df['MKD'] = df['MKD'].apply(lambda x: parse_and_format_date(x, 'datetime'))
+        df['MSDT'] = df['MSDT'].apply(lambda x: parse_and_format_date(x, 'date'))
+        df['UPD_DATE'] = df['UPD'].apply(lambda x: parse_and_format_date(x, 'date'))
+        df['UPD'] = df['UPD'].apply(lambda x: parse_and_format_date(x, 'datetime'))
+        return df
+    elif 'tms060' in f_name:
+        df['MSDT'] = df['MSDT'].apply(lambda x: parse_and_format_date(x, 'date'))
+        df['REF_DF'] = df['REF_DF'].apply(lambda x: parse_and_format_date(x, 'datetime'))
+        df['UPD_DATE'] = df['REF_DL'].apply(lambda x: parse_and_format_date(x, 'date'))
+        df['REF_DL'] = df['REF_DL'].apply(lambda x: parse_and_format_date(x, 'datetime'))
+        return df
+    else:
+        return df
 
-# Cloud Function のエントリーポイント
-@functions_framework.cloud_event
-def main(cloud_event):
-    """Cloud Function triggered by a Cloud Pub/Sub event."""
-    # Pub/Sub メッセージのデータを取得
-    pubsub_message = base64.b64decode(cloud_event.data["message"]["data"]).decode("utf-8")
-    message_data = json.loads(pubsub_message)
-
-    # ストレージイベントの詳細を取得
-    bucket = message_data["bucket"]
-    name = message_data["name"]
-
-    # GCS to BigQuery 処理を呼び出す
-    gcs_to_bq(bucket, name)
+if __name__ == '__main__':
+    process_import_bq('./query/load_vma0060.sql', 'vma0060/', vma0060_table_name, 'DT', vma0060_cols, schema_vma0060)
+    process_import_bq('./query/load_tms010.sql', 'tms010/', tms010_table_name, 'UPD_DATE', tms010_cols, schema_tms010)
+    process_import_bq('./query/load_tms060.sql', 'tms060/', tms060_table_name, 'UPD_DATE', tms060_cols, schema_tms060)

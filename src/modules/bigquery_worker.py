@@ -16,7 +16,7 @@ class BigQueryWorker:
         self.credentials, self.project_name = google.auth.default()
         self.client = bigquery.Client(project=self.project_name, credentials=self.credentials)
     #     self.credentials = service_account.Credentials.from_service_account_file(
-    # "../icj-recommend-dev-88df20cf0dd1.json", scopes=["https://www.googleapis.com/auth/cloud-platform"],)
+    # "./ifind-dm-compute-service-key.json", scopes=["https://www.googleapis.com/auth/cloud-platform"],)
     #     self.client = bigquery.Client(project=self.credentials.project_id, credentials=self.credentials)
     
     @staticmethod
