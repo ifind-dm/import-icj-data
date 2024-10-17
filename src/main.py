@@ -100,7 +100,7 @@ def gcs_to_bq(bucket_name, file_name):
     temp_file_path = f"/tmp/{os.path.basename(file_name)}"
     
     # ファイル名に基づいて適切な処理を選択
-    if 'vma060' in file_name:
+    if 'vma0060' in file_name:
         process_vma0060(temp_file_path, bucket_name, file_name)
     elif 'tms010' in file_name:
         process_tms010(temp_file_path, bucket_name, file_name)
