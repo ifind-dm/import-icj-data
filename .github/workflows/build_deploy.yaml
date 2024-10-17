@@ -48,18 +48,18 @@ jobs:
 
       - name: Build and push Docker image to GCR
         run: |
-            docker build -t us-central1-docker.pkg.dev/data-management/import-icj-data/${{ env.ENVIRONMENT }}-import-icj-data:latest .
+            docker build -t us-central1-docker.pkg.dev/ifind-dm/data-management/${{ env.ENVIRONMENT }}-import-icj-data:latest .
           
       - name: Push Docker image to GCR
         run: |
-            docker push us-central1-docker.pkg.dev/data-management/import-icj-data/${{ env.ENVIRONMENT }}-import-icj-data:latest
+            docker push us-central1-docker.pkg.dev/ifind-dm/data-management/${{ env.ENVIRONMENT }}-import-icj-data:latest
 
 
       - name: Deploy to cloud run job
         run: |
           
           gcloud run jobs deploy recommend-model \
-          --image us-central1-docker.pkg.dev/data-management/import-icj-data/${{ env.ENVIRONMENT }}-import-icj-data:latest \
+          --image us-central1-docker.pkg.dev/ifind-dm/data-management/${{ env.ENVIRONMENT }}-import-icj-data:latest \
           --region us-central1 \
           --port 8000 \
           --platform managed \
