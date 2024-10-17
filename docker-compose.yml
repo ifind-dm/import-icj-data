@@ -1,0 +1,24 @@
+version: "3.9"
+services:
+  analysis:
+    image: import-icj-data:latest       # イメージの名前
+    # platform: linux/amd64
+    container_name: import-icj-data  # コンテナの名前
+    build:
+      context: "./"
+      dockerfile: "Dockerfile"
+    env_file:
+      - ./.env
+    # environment:
+    #   OPENAI_API_KEY: ${OPENAI_API_KEY}
+    #   AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+    #   GENESYS_CLOUD_CLIENT_ID: ${GENESYS_CLOUD_CLIENT_ID}
+    #   GENESYS_CLOUD_CLIENT_SECRET: ${GENESYS_CLOUD_CLIENT_SECRET}
+    volumes:
+      - ./src:/app   #現在のフォルダをコンテナにマウント
+    ports:
+      - '8082:8082'
+    command: jupyter-lab --port=8082 --ip=0.0.0.0 --allow-root --NotebookApp.token=''
+
+    tty: true # コンテナを立ち上げた後、起動させたままにする
+              # (このオプションを付けないと起動しても、すぐ停止してしまう)
