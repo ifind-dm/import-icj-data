@@ -1,4 +1,4 @@
-name: Deploy to Cloud Functions
+name: Deploy to Cloud run job
 
 on:
   push:
@@ -61,9 +61,10 @@ jobs:
           gcloud run jobs deploy ${{ env.FUNCTION_NAME }} \
           --image us-central1-docker.pkg.dev/ifind-dm/data-management/${{ env.ENVIRONMENT }}-import-icj-data:latest \
           --region us-central1 \
-          --port 8000 \
-          --platform managed \
-          --allow-unauthenticated
           --task-timeout 300m
-          --set-env-vars=ENVIRONMENT=${{ env.ENVIRONMENT }},PROJECT_ID=${{ env.PROJECT_ID }},BQ_DATASET_ID=${{ env.BQ_DATASET_ID }},TABLE_PREFIX=${{ env.TABLE_PREFIX }}
+          --set-env-vars=ENVIRONMENT=${{ env.ENVIRONMENT }}
+          --set-env-vars=BUCKET_NAME=${{ env.BUCKET_NAME }}
+          --set-env-vars=PROJECT_ID=${{ env.PROJECT_ID }}
+          --set-env-vars=BQ_DATASET_ID=${{ env.BQ_DATASET_ID }}
+          --set-env-vars=TABLE_PREFIX=${{ env.TABLE_PREFIX }}
           
