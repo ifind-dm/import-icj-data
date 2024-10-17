@@ -35,6 +35,32 @@ tms010_table_name = 'iris_lv0_mst_tms010_journal_master'
 tms060_table_name = 'iris_lv0_tra_tms060_journal_action_log'
 tlog_table_name = 'iris_lv0_tra_tlog_journal_action_log'
 
+def parse_datetime(date_str):
+    """
+    様々な日付時刻フォーマットを解析する関数
+    """
+    formats = [
+        "%Y-%m-%d %H:%M:%S.%f %z",  # ISO 8601 形式（マイクロ秒とタイムゾーン付き）
+        "%Y-%m-%d %H:%M:%S.%f",     # マイクロ秒付き
+        "%Y-%m-%d %H:%M:%S %z",     # タイムゾーン付き
+        "%Y-%m-%d %H:%M:%S",        # 基本形式
+        "%Y-%m-%d",                 # 日付のみ
+    ]
+    
+    for fmt in formats:
+        try:
+            return datetime.strptime(date_str, fmt)
+        except ValueError:
+            pass
+    
+    try:
+        # ISO 8601 形式を自動解析
+        return pd.to_datetime(date_str, format='ISO8601')
+    except ValueError:
+        # 全ての解析が失敗した場合
+        return None
+
+
 def process_vma0060(file_path, bucket_name, file_name):
     gcs.download_blob(bucket_name, file_name, file_path)
     df = pd.read_csv(file_path, sep='\t', encoding='utf-8', names=vma0060_cols)
@@ -45,7 +71,12 @@ def process_vma0060(file_path, bucket_name, file_name):
 def process_tms010(file_path, bucket_name, file_name):
     gcs.download_blob(bucket_name, file_name, file_path)
     df = pd.read_csv(file_path, sep='\t', encoding='utf-8', names=tms010_cols)
-    df['UPD_DATE'] = pd.to_datetime(df['UPD'], format="%Y-%m-%d %H:%M:%S.%f").dt.date
+    try:
+        df['UPD_DATE'] = df['UPD'].apply(parse_datetime).dt.date
+    except Exception as e:
+        df['UPD_DATE'] = yesterday_date
+        print(e)
+    
     tbl_full = f"{project_id}.{dataset_id}.{tms010_table_name}"
     bq.insert_with_client(df, schema_tms010, tbl_full, 'UPD_DATE')
 
@@ -53,7 +84,11 @@ def process_tms010(file_path, bucket_name, file_name):
 def process_tms060(file_path, bucket_name, file_name):
     gcs.download_blob(bucket_name, file_name, file_path)
     df = pd.read_csv(file_path, sep='\t', encoding='utf-8', names=tms060_cols)
-    df['UPD_DATE'] = pd.to_datetime(df['REF_DL'], format="%Y-%m-%d %H:%M:%S").dt.date
+    try:
+        df['UPD_DATE'] = df['REF_DL'].apply(parse_datetime).dt.date
+    except Exception as e:
+        df['UPD_DATE'] = yesterday_date
+        print(e)
     tbl_full = f"{project_id}.{dataset_id}.{tms060_table_name}"
     bq.insert_with_client(df, schema_tms060, tbl_full, 'UPD_DATE')
 
@@ -65,7 +100,7 @@ def gcs_to_bq(bucket_name, file_name):
     temp_file_path = f"/tmp/{os.path.basename(file_name)}"
     
     # ファイル名に基づいて適切な処理を選択
-    if 'vma060' in file_name:
+    if 'vma0060' in file_name:
         process_vma0060(temp_file_path, bucket_name, file_name)
     elif 'tms010' in file_name:
         process_tms010(temp_file_path, bucket_name, file_name)
