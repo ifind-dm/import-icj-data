@@ -9,12 +9,6 @@ on:
 env:
   PROJECT_ID: ifind-dm
   REGION: us-central1
-  SOURCE_DIR: src
-  PROJECT_NUMBER: '614186555151'
-  POOL_ID: github-actions-pool
-  PROVIDER_ID: github
-  SERVICE_ACCOUNT: ifind-dm-developers@ifind-dm.iam.gserviceaccount.com
-  PUBSUB_TOPIC: storage-events-icj-data
 
 jobs:
   deploy:
