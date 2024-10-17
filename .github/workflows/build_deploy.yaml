@@ -58,7 +58,7 @@ jobs:
       - name: Deploy to cloud run job
         run: |
           
-          gcloud run jobs deploy recommend-model \
+          gcloud run jobs deploy ${{ env.FUNCTION_NAME }} \
           --image us-central1-docker.pkg.dev/ifind-dm/data-management/${{ env.ENVIRONMENT }}-import-icj-data:latest \
           --region us-central1 \
           --port 8000 \
