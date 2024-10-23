@@ -67,10 +67,10 @@ def process_import_bq(query_path, prefix, table_name, partition_key, cols, schem
             df = pd.read_csv(destination_file_name, sep='\t', encoding='utf-8', names=cols)
             df = preprocess_data(df, f_name)
             bq.insert_with_client(df, schema, tbl_full, partition_key)
-            slack_bot.slack_notify_success(f'Imported {f_name} to {table_name}', additional_info=f'Imported {len(df)} rows')
+            slack_bot.slack_notify_success(f'Imported {f_name} to {table_name}', additional_info={'record_num':len(df)})
         except Exception as e:
             print(e)
-            slack_bot.slack_notify_error(f'Failed to import {f_name} to {table_name}', additional_info=str(e))
+            slack_bot.slack_notify_error(f'Failed to import {f_name} to {table_name}', additional_info={'error detail':str(e)})
             continue
 
 
