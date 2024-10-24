@@ -6,7 +6,7 @@ class Slack:
     def __init__(self, webhook_url: Optional[str] = None, 
                  bot_name: Optional[str] = "通知Bot",
                  icon_emoji: Optional[str] = ":robot_face:"):
-        self.web_hook_url = webhook_url or 'https://hooks.slack.com/services/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'
+        self.web_hook_url = webhook_url or 'https://hooks.slack.com/services/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'
         self.bot_name = bot_name
         self.icon_emoji = icon_emoji
 
