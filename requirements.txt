@@ -1,0 +1,13 @@
+numpy 
+pandas
+google-cloud-storage
+google-cloud-bigquery
+python-dotenv
+db-dtypes
+hydra-core==1.1
+pytz
+functions-framework
+ipython 
+ipykernel
+jupyterlab
+notebook
